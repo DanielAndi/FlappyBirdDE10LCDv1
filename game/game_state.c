@@ -34,7 +34,13 @@
  * @todo Add input validation for all setter functions
  */
 
- #include "game_state.h"
+#include "game_state.h"
+
+#include <stdbool.h>
+#include <string.h>
+
+static game_state_t global_state;
+static bool global_state_initialized = false;
 
  /**
   * @brief Initialize the game state structure with default values
@@ -77,22 +83,115 @@
   * // Game state is now initialized and ready for use
   * @endcode
   */
- void game_state_init(game_state_t *game_state) {
-     // Initialize scoring variables
-     game_state->score = 0;           // Current session score
-     game_state->current_score = 0;   // Current level score
-     game_state->total_score = 0;     // Cumulative score
-     game_state->high_score = 0;      // Highest score achieved
-     
-     // Initialize level progression variables
-     game_state->level = 1;           // Current difficulty level
-     game_state->current_level = 1;   // Current level in session
-     game_state->total_levels = 10;   // Total available levels
-     
-     // Initialize player state variables
-     game_state->lives = 3;           // Starting lives count
-     
-     // Initialize timing variables
-     game_state->current_time = 0;    // Current session time
-     game_state->total_time = 0;      // Total play time
- }
+void game_state_init(game_state_t *game_state) {
+    if (!game_state) {
+        return;
+    }
+
+    // Initialize scoring variables
+    game_state->score = 0;           // Current session score
+    game_state->current_score = 0;   // Current level score
+    game_state->total_score = 0;     // Cumulative score
+    game_state->high_score = 0;      // Highest score achieved
+
+    // Initialize level progression variables
+    game_state->level = 1;           // Current difficulty level
+    game_state->current_level = 1;   // Current level in session
+    game_state->total_levels = 10;   // Total available levels
+
+    // Initialize player state variables
+    game_state->lives = 3;           // Starting lives count
+
+    // Initialize timing variables
+    game_state->current_time = 0;    // Current session time
+    game_state->total_time = 0;      // Total play time
+
+    memcpy(&global_state, game_state, sizeof(game_state_t));
+    global_state_initialized = true;
+}
+
+void game_state_update(game_state_t *game_state) {
+    if (!game_state) {
+        return;
+    }
+
+    game_state->current_time += 1;
+    game_state->total_time += 1;
+
+    if (game_state->current_score > game_state->high_score) {
+        game_state->high_score = game_state->current_score;
+    }
+
+    memcpy(&global_state, game_state, sizeof(game_state_t));
+    global_state_initialized = true;
+}
+
+game_state_t *game_state_get(void) {
+    if (!global_state_initialized) {
+        return NULL;
+    }
+    return &global_state;
+}
+
+void game_state_set(game_state_t *game_state) {
+    if (!game_state) {
+        return;
+    }
+
+    memcpy(&global_state, game_state, sizeof(game_state_t));
+    global_state_initialized = true;
+}
+
+int game_state_get_lives(void) {
+    if (!global_state_initialized) {
+        return 0;
+    }
+    return global_state.lives;
+}
+
+void game_state_set_lives(int lives) {
+    if (!global_state_initialized) {
+        return;
+    }
+
+    if (lives < 0) {
+        lives = 0;
+    }
+    global_state.lives = lives;
+}
+
+int game_state_get_high_score(void) {
+    if (!global_state_initialized) {
+        return 0;
+    }
+    return global_state.high_score;
+}
+
+void game_state_set_high_score(int high_score) {
+    if (!global_state_initialized) {
+        return;
+    }
+
+    if (high_score < 0) {
+        high_score = 0;
+    }
+    global_state.high_score = high_score;
+}
+
+int game_state_get_current_time(void) {
+    if (!global_state_initialized) {
+        return 0;
+    }
+    return global_state.current_time;
+}
+
+void game_state_set_current_time(int current_time) {
+    if (!global_state_initialized) {
+        return;
+    }
+
+    if (current_time < 0) {
+        current_time = 0;
+    }
+    global_state.current_time = current_time;
+}

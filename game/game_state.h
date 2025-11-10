@@ -34,7 +34,7 @@
 #ifndef GAME_STATE_H
 #define GAME_STATE_H
 
-#include "address_map_arm.h"
+#include "hardware/address_map_arm.h"
 
 /**
  * @def GAME_STATE_BASE

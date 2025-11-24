@@ -33,10 +33,27 @@ static const glyph_t FONT_5X7[] = {
     { 'S', { 0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E } },
     { 'T', { 0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 } },
     { 'U', { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E } },
+    { '0', { 0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E } },
+    { '1', { 0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E } },
+    { '2', { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F } },
+    { '3', { 0x0E, 0x11, 0x01, 0x06, 0x01, 0x11, 0x0E } },
+    { '4', { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 } },
+    { '5', { 0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E } },
+    { '6', { 0x0E, 0x11, 0x10, 0x1E, 0x11, 0x11, 0x0E } },
+    { '7', { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 } },
+    { '8', { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E } },
+    { '9', { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x11, 0x0E } },
 };
 
 static const glyph_t *lookup_glyph(char character) {
-    char normalized = (char)toupper((unsigned char)character);
+    // For digits, use as-is; for letters, convert to uppercase
+    char normalized;
+    if (character >= '0' && character <= '9') {
+        normalized = character;
+    } else {
+        normalized = (char)toupper((unsigned char)character);
+    }
+    
     for (size_t i = 0; i < (sizeof(FONT_5X7) / sizeof(FONT_5X7[0])); ++i) {
         if (FONT_5X7[i].character == normalized) {
             return &FONT_5X7[i];
@@ -149,5 +166,60 @@ void graphics_draw_startup_screen(graphics_context_t *ctx) {
     graphics_draw_text(ctx, 16U, 16U, "HELLO!");
     graphics_draw_text(ctx, 8U, 32U, "PRESS BUTTON");
     graphics_present(ctx);
+}
+
+/**
+ * @brief Convert a number to a string representation
+ * 
+ * Converts an unsigned integer to a decimal string representation.
+ * The string is stored in the provided buffer.
+ * 
+ * @param value Number to convert
+ * @param buffer Buffer to store the string (must be at least 12 bytes)
+ * @param buffer_size Size of the buffer
+ * @return Number of characters written (excluding null terminator)
+ */
+static int uint_to_string(uint32_t value, char *buffer, size_t buffer_size) {
+    if (!buffer || buffer_size == 0) {
+        return 0;
+    }
+
+    if (value == 0) {
+        if (buffer_size >= 2) {
+            buffer[0] = '0';
+            buffer[1] = '\0';
+            return 1;
+        }
+        return 0;
+    }
+
+    char temp[12];
+    size_t idx = 0;
+
+    while (value > 0 && idx < sizeof(temp) - 1) {
+        temp[idx++] = '0' + (char)(value % 10);
+        value /= 10;
+    }
+
+    if (idx >= buffer_size) {
+        idx = buffer_size - 1;
+    }
+
+    for (size_t i = 0; i < idx; ++i) {
+        buffer[i] = temp[idx - 1 - i];
+    }
+    buffer[idx] = '\0';
+
+    return (int)idx;
+}
+
+void graphics_draw_number(graphics_context_t *ctx, uint32_t x, uint32_t y, uint32_t number) {
+    if (!ctx) {
+        return;
+    }
+
+    char buffer[12];
+    uint_to_string(number, buffer, sizeof(buffer));
+    graphics_draw_text(ctx, x, y, buffer);
 }
 

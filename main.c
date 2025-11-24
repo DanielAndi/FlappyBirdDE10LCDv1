@@ -35,6 +35,7 @@
 #include "hardware/fpga_peripherals.h"
 #include "display/graphics.h"
 #include "input/input_handler.h"
+#include "game/game_state.h"
 #include "game/gameplay.h"
 
 /** Global flag indicating the program should exit */
@@ -101,10 +102,25 @@ int main(void) {
         return 1;
     }
 
+    // Initialize game state early to load high score
+    game_state_t game_state;
+    game_state_init(&game_state);
+    game_state_set(&game_state);
+
     // Initialize graphics subsystem and display startup screen
     graphics_context_t graphics;
     graphics_init(&graphics);
-    graphics_draw_startup_screen(&graphics);
+    
+    // Draw startup screen with high score if available
+    graphics_clear(&graphics);
+    graphics_draw_text(&graphics, 16U, 16U, "HELLO!");
+    graphics_draw_text(&graphics, 8U, 32U, "PRESS BUTTON");
+    int high_score = game_state_get_high_score();
+    if (high_score > 0) {
+        graphics_draw_text(&graphics, 8U, 48U, "HI:");
+        graphics_draw_number(&graphics, 40U, 48U, (uint32_t)high_score);
+    }
+    graphics_present(&graphics);
 
     // Initialize input handler for button/switch reading
     input_state_t input;

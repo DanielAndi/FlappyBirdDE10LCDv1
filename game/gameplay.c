@@ -22,6 +22,7 @@
 #include "display/sprites.h"
 #include "game/collision.h"
 #include "game/game_objects.h"
+#include "game/game_state.h"
 #include "game/physics.h"
 #include "hardware/fpga_peripherals.h"
 
@@ -209,6 +210,11 @@ void gameplay_run(graphics_context_t *gfx,
     // Initialize hex display for score
     fpga_hex_init(bridge);
 
+    // Initialize game state
+    game_state_t game_state;
+    game_state_init(&game_state);
+    game_state_set(&game_state);
+
     physics_body_t bird_body;
     physics_init(&bird_body);
 
@@ -222,11 +228,10 @@ void gameplay_run(graphics_context_t *gfx,
     bool pipe_scored[PIPE_COUNT] = { false };
     pipe_pair_t pipes[PIPE_COUNT];
     uint32_t rng_state = 0x1U;
-    uint32_t score = 0U;
     game_mode_t mode = GAME_MODE_READY;
     
     // Display initial score of 0
-    fpga_hex_display(bridge, score);
+    fpga_hex_display(bridge, 0U);
 
     aabb_t bird_bounds =
         collision_create((float)BIRD_START_X, bird_body.position,
@@ -245,8 +250,14 @@ void gameplay_run(graphics_context_t *gfx,
                 bird_body.position = starting_y;
                 physics_apply_impulse(&bird_body, JUMP_IMPULSE);
                 mode = GAME_MODE_PLAYING;
-                score = 0U;
-                fpga_hex_display(bridge, score);  // Reset hex display to 0
+                // Reset score in game state
+                game_state_t *state = game_state_get();
+                if (state) {
+                    state->score = 0;
+                    state->current_score = 0;
+                    game_state_set(state);
+                }
+                fpga_hex_display(bridge, 0U);  // Reset hex display to 0
                 for (size_t i = 0U; i < PIPE_COUNT; ++i) {
                     pipe_scored[i] = false;
                 }
@@ -258,8 +269,14 @@ void gameplay_run(graphics_context_t *gfx,
             } else if (mode == GAME_MODE_GAME_OVER) {
                 physics_reset(&bird_body);
                 bird_body.position = starting_y;
-                score = 0U;
-                fpga_hex_display(bridge, score);  // Reset hex display to 0
+                // Reset score in game state
+                game_state_t *state = game_state_get();
+                if (state) {
+                    state->score = 0;
+                    state->current_score = 0;
+                    game_state_set(state);
+                }
+                fpga_hex_display(bridge, 0U);  // Reset hex display to 0
                 spawn_pipe_line(pipes, pipe_scored, PIPE_COUNT,
                                 (float)LCD_WIDTH + 20.0f, PIPE_SPACING,
                                 PIPE_GAP_HEIGHT, PIPE_SPEED, &rng_state);
@@ -276,6 +293,15 @@ void gameplay_run(graphics_context_t *gfx,
                 bird_body.position = ground_y;
                 bird_body.velocity = 0.0f;
                 mode = GAME_MODE_GAME_OVER;
+                // Update high score if current score is higher
+                game_state_t *state = game_state_get();
+                if (state) {
+                    if (state->score > state->high_score) {
+                        state->high_score = state->score;
+                        state->current_score = state->score;
+                        game_state_update(state);
+                    }
+                }
             } else if (bird_body.position < ceiling_y) {
                 bird_body.position = ceiling_y;
                 if (bird_body.velocity < 0.0f) {
@@ -292,16 +318,34 @@ void gameplay_run(graphics_context_t *gfx,
 
             if (check_pipe_collisions(&bird_bounds, pipes, PIPE_COUNT)) {
                 mode = GAME_MODE_GAME_OVER;
+                // Update high score if current score is higher
+                game_state_t *state = game_state_get();
+                if (state) {
+                    if (state->score > state->high_score) {
+                        state->high_score = state->score;
+                        state->current_score = state->score;
+                        game_state_update(state);
+                    }
+                }
             }
 
             for (size_t i = 0U; i < PIPE_COUNT; ++i) {
                 const float pipe_right =
                     pipes[i].x + pipes[i].top_bounds.width;
                 if (!pipe_scored[i] && pipe_right < (float)BIRD_START_X) {
-                    ++score;
+                    // Update score in game state
+                    game_state_t *state = game_state_get();
+                    if (state) {
+                        state->score++;
+                        state->current_score = state->score;
+                        // Update high score if needed
+                        if (state->score > state->high_score) {
+                            state->high_score = state->score;
+                        }
+                        game_state_update(state);
+                        fpga_hex_display(bridge, (uint32_t)state->score);
+                    }
                     pipe_scored[i] = true;
-                    // Update hex display with new score
-                    fpga_hex_display(bridge, score);
                 }
             }
         } else {
@@ -318,14 +362,35 @@ void gameplay_run(graphics_context_t *gfx,
         graphics_draw_sprite(gfx, BIRD_START_X,
                              (uint32_t)(bird_body.position + 0.5f), bird);
 
+        // Get current game state for display
+        game_state_t *state = game_state_get();
+        uint32_t current_score = 0U;
+        int high_score = 0;
+        if (state) {
+            current_score = (uint32_t)state->score;
+            high_score = state->high_score;
+        }
+
         if (mode == GAME_MODE_READY) {
             graphics_draw_text(gfx, 10U, 8U, "PRESS!");
             graphics_draw_text(gfx, 10U, 24U, "PRESS!");
+            // Display high score on ready screen
+            if (high_score > 0) {
+                graphics_draw_text(gfx, 10U, 40U, "HI:");
+                graphics_draw_number(gfx, 40U, 40U, (uint32_t)high_score);
+            }
         } else if (mode == GAME_MODE_GAME_OVER) {
             graphics_draw_text(gfx, 10U, 8U, "LOSE!");
             graphics_draw_text(gfx, 10U, 24U, "PRESS!");
+            // Display score and high score on game over screen
+            graphics_draw_text(gfx, 10U, 40U, "SCORE:");
+            graphics_draw_number(gfx, 70U, 40U, current_score);
+            graphics_draw_text(gfx, 10U, 48U, "HI:");
+            graphics_draw_number(gfx, 40U, 48U, (uint32_t)high_score);
         } else {
-            (void)score;
+            // Display current score during gameplay (top right)
+            graphics_draw_text(gfx, 80U, 0U, "S:");
+            graphics_draw_number(gfx, 100U, 0U, current_score);
         }
 
         graphics_present(gfx);

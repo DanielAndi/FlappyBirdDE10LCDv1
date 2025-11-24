@@ -280,4 +280,39 @@ void game_state_set_current_time(int current_time);
  * @}
  */
 
+/**
+ * @name High Score Persistence Functions
+ * @{
+ */
+
+/**
+ * @brief Load high score from persistent storage
+ * 
+ * Attempts to load the high score from a file. If the file doesn't exist
+ * or cannot be read, returns 0 (no high score).
+ * 
+ * @return High score value loaded from file, or 0 if file doesn't exist or error
+ * 
+ * @note The high score file is stored at /tmp/flappy_bird_highscore.txt
+ * @note This function is safe to call even if the file doesn't exist
+ */
+int game_state_load_high_score(void);
+
+/**
+ * @brief Save high score to persistent storage
+ * 
+ * Saves the current high score to a file for persistence across game sessions.
+ * 
+ * @param high_score High score value to save
+ * @return 0 on success, -1 on failure
+ * 
+ * @note The high score file is stored at /tmp/flappy_bird_highscore.txt
+ * @note This function will create the file if it doesn't exist
+ */
+int game_state_save_high_score(int high_score);
+
+/**
+ * @}
+ */
+
 #endif // GAME_STATE_H      

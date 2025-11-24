@@ -140,4 +140,18 @@ void graphics_shutdown(graphics_context_t *ctx);
  */
 void graphics_draw_startup_screen(graphics_context_t *ctx);
 
+/**
+ * @brief Draw a number on the display
+ * 
+ * Converts a number to a string and draws it at the specified position.
+ * 
+ * @param ctx Pointer to graphics context
+ * @param x X coordinate of the top-left corner of the number
+ * @param y Y coordinate of the top-left corner of the number
+ * @param number Number to display
+ * 
+ * @note This function performs null pointer checking
+ */
+void graphics_draw_number(graphics_context_t *ctx, uint32_t x, uint32_t y, uint32_t number);
+
 #endif /* GRAPHICS_H */

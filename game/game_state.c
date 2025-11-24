@@ -38,6 +38,11 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 static game_state_t global_state;
 static bool global_state_initialized = false;
@@ -92,7 +97,7 @@ void game_state_init(game_state_t *game_state) {
     game_state->score = 0;           // Current session score
     game_state->current_score = 0;   // Current level score
     game_state->total_score = 0;     // Cumulative score
-    game_state->high_score = 0;      // Highest score achieved
+    game_state->high_score = game_state_load_high_score();  // Load from persistent storage
 
     // Initialize level progression variables
     game_state->level = 1;           // Current difficulty level
@@ -120,6 +125,8 @@ void game_state_update(game_state_t *game_state) {
 
     if (game_state->current_score > game_state->high_score) {
         game_state->high_score = game_state->current_score;
+        // Save high score to persistent storage when it changes
+        game_state_save_high_score(game_state->high_score);
     }
 
     memcpy(&global_state, game_state, sizeof(game_state_t));
@@ -194,4 +201,47 @@ void game_state_set_current_time(int current_time) {
         current_time = 0;
     }
     global_state.current_time = current_time;
+}
+
+#define HIGH_SCORE_FILE "/tmp/flappy_bird_highscore.txt"
+
+int game_state_load_high_score(void) {
+    FILE *file = fopen(HIGH_SCORE_FILE, "r");
+    if (!file) {
+        // File doesn't exist or can't be opened - return 0 (no high score)
+        return 0;
+    }
+
+    int high_score = 0;
+    if (fscanf(file, "%d", &high_score) != 1) {
+        high_score = 0;
+    }
+    fclose(file);
+
+    // Ensure high score is non-negative
+    if (high_score < 0) {
+        high_score = 0;
+    }
+
+    return high_score;
+}
+
+int game_state_save_high_score(int high_score) {
+    if (high_score < 0) {
+        return -1;
+    }
+
+    FILE *file = fopen(HIGH_SCORE_FILE, "w");
+    if (!file) {
+        return -1;
+    }
+
+    int result = fprintf(file, "%d\n", high_score);
+    fclose(file);
+
+    if (result < 0) {
+        return -1;
+    }
+
+    return 0;
 }
